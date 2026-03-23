@@ -1,0 +1,83 @@
+header {
+    display: flex;
+    flex-direction: row;
+    gap: 1rem;
+    padding-bottom: 1rem;
+}
+
+.button-panel {
+    width: 10rem;
+    display: grid;
+    gap: 0.25rem;
+}
+
+.relations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+}
+
+.relation {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+
+    .relation_controls {
+        width: 100%;
+        display: flex;
+        gap: 0.2rem;
+
+        button {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+
+        input {
+            flex: 1;
+        }
+    }
+}
+
+.grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+
+    .grid_body {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+
+    .grid_header, .grid_row {
+        display: flex;
+        gap: 0.1rem;
+        justify-content: space-evenly;
+
+        input {
+            flex: 1;
+        }
+    }
+
+    .grid_header input {
+        background-color: #eee;
+        text-align: center;
+    }
+
+    .grid_row input {
+        text-align: right;
+    }
+}
+
+.formula {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+
+    .formula_textarea {
+        min-width: 19.5rem;
+        max-width: 100%;
+        min-height: 7.5rem;
+        field-sizing: content;
+    }
+}
