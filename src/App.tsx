@@ -1,40 +1,48 @@
 import "./App.css";
-import {useState} from "react";
-import {FormulaRelationExpr, GridRelationExpr, RelationExpr, type Scope} from "./model.ts";
-import {arrayDup, mapDel, mapDup, mapFindKey, mapSet} from "./utils/functional-utils.ts";
-import {RelationEditor} from "./components/RelationEditor.tsx";
+import {mapSet} from "./utils/functional-utils.ts";
+import {RelationEditor} from "./components/relation-editor.tsx";
+import type {RelationExpr} from "./model/core.ts";
+import {GridRelationExpr} from "./model/grid-relation-expr.ts";
+import {FormulaRelationExpr} from "./model/formula-relation-expr.ts";
+import {GlobalScope} from "./utils/language-utils.ts";
+import {atomMut, useAtomMut} from "./utils/react-utils.ts";
+
+const exprsAtom = atomMut(new Array<RelationExpr>());
+const exprsNamesAtom = atomMut(new Map<RelationExpr, string>());
+const scopeAtom = atomMut(new GlobalScope<RelationExpr>());
 
 export default function App() {
-    const [exprs, setExprs] = useState<RelationExpr[]>([]);
-    const [scope, setScope] = useState<Scope>(new Map());
+    const [exprs, setExprs, mutExprs] = useAtomMut(exprsAtom);
+    const [exprNames, setExprNames, _mutExprNames] = useAtomMut(exprsNamesAtom);
+    const [scope, _setScope, mutScope] = useAtomMut(scopeAtom);
 
-    function handleRelationAdd(r: RelationExpr) {
-        setExprs(rs => [...rs, r]);
+    function handleExprAdd(e: RelationExpr) {
+        setExprs(es => [...es, e])
     }
 
-    function handleRelationDel(r: RelationExpr) {
-        setExprs(rs => rs.filter(x => x !== r));
-        setScope(s => {
-            const key = mapFindKey(s, r);
-            if (key) {
-                return mapDel(s, key);
-            } else {
-                return s;
+    function handleExprDelete(r: RelationExpr) {
+        setExprs(es => es.filter(x => x !== r));
+        mutScope(s => {
+            const name = exprNames.value.get(r);
+            if (name) {
+                s.undefine(name);
             }
         });
     }
 
-    function handleRelationRename(r: RelationExpr, newName: string) {
-        const oldName = mapFindKey(scope, r);
+    function handleExprRename(r: RelationExpr, newName: string) {
+        const oldName = exprNames.value.get(r);
+        setExprNames(en => mapSet(en, r, newName));
+
         if (oldName) {
             if (newName === oldName) {
                 // no change
                 return;
             }
-            setScope(s => mapDel(s, oldName));
+            mutScope(s => s.undefine(oldName));
         }
 
-        if (scope.get(newName) != null) {
+        if (scope.value.hasDefined(newName)) {
             // invalid: name already present
             return;
         }
@@ -45,22 +53,22 @@ export default function App() {
             return;
         }
 
-        setScope(s => mapSet(s, newName, r));
+        mutScope(s => s.define(newName, r));
     }
 
     function handleExprChange() {
-        setExprs(arrayDup);
-        setScope(mapDup);
+        mutExprs();
+        mutScope();
     }
 
     return <>
         <header>
             <h1>Relsheet</h1>
             <div className={"button-panel"}>
-                <button onClick={() => handleRelationAdd(new GridRelationExpr())}>
+                <button onClick={() => handleExprAdd(new GridRelationExpr())}>
                     Add grid
                 </button>
-                <button onClick={() => handleRelationAdd(new FormulaRelationExpr())}>
+                <button onClick={() => handleExprAdd(new FormulaRelationExpr())}>
                     Add formula
                 </button>
             </div>
@@ -68,13 +76,14 @@ export default function App() {
 
         {/* relations */}
         <div className="relations">
-            {exprs.map(e =>
+            {exprs.value.map(e =>
                 <RelationEditor
                     key={e.id}
                     expr={e}
                     scope={scope}
-                    onDelete={() => handleRelationDel(e)}
-                    onNameChange={newName => handleRelationRename(e, newName)}
+                    onDelete={() => handleExprDelete(e)}
+                    name={exprNames.value.get(e) ?? ""}
+                    onNameChange={newName => handleExprRename(e, newName)}
                     onChange={handleExprChange}
                 />
             )}

@@ -1,31 +1,14 @@
-import {arrayAppend, arrayDup, arrayHasRepeats, arrayResize, arraySet, arrayUpdate} from "./utils/functional-utils.ts";
-
-export type RelationVal = {
-    cols: string[];
-    rows: string[][];
-};
-
-export type Scope = Map<string, RelationExpr>;
-
-export type EvalCtx = {
-    scope: Scope,
-    callStack: RelationExpr[],
-};
-
-export abstract class RelationExpr {
-    readonly id: string = crypto.randomUUID();
-
-    abstract run(ctx: EvalCtx): RelationVal | undefined;
-}
+import {type EvalCtx, RelationExpr, type RelationVal} from "./core.ts";
+import {arrayDup, arrayHasRepeats, arrayResize, arraySet, arrayUpdate} from "../utils/functional-utils.ts";
 
 export class GridRelationExpr extends RelationExpr {
     cols: string[] = [];
     rows: string[][] = [];
 
-    override run(_ctx: EvalCtx): RelationVal | undefined {
+    override run(_ctx: EvalCtx): RelationVal {
         const invalidCol = (col: string) => col.length === 0;
         if (this.cols.some(invalidCol) || arrayHasRepeats(this.cols)) {
-            return undefined;
+            throw new Error("Invalid cols");
         }
 
         return {
@@ -106,27 +89,3 @@ export class GridRelationExpr extends RelationExpr {
     }
 }
 
-export class FormulaRelationExpr extends RelationExpr {
-    query: string = "";
-
-    // TODO: mejorar lenguaje
-    override run(ctx: EvalCtx): RelationVal | undefined {
-        const words = this.query.split(/\s+/);
-        if (words.length != 1) {
-            return undefined;
-        }
-        const calleeName = words[0];
-
-        ctx = {
-            scope: ctx.scope,
-            callStack: arrayAppend(ctx.callStack, this),
-        };
-
-        const callee = ctx.scope.get(calleeName);
-        if (!callee || ctx.callStack.includes(callee)) {
-            return undefined;
-        }
-
-        return callee.run(ctx);
-    }
-}

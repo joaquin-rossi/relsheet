@@ -1,10 +1,13 @@
-export function mapFindKey<K, V>(map: Map<K, V>, targetVal: V): K | undefined {
-    for (const [key, value] of map.entries()) {
-        if (value === targetVal) {
-            return key;
-        }
+export function todo(): never {
+    throw new Error("To-do");
+}
+
+export function unreachable(msg: string | undefined = undefined): never {
+    if (msg) {
+        throw new Error(`Unreachable: ${msg}`);
+    } else {
+        throw new Error("Unreachable");
     }
-    return undefined;
 }
 
 export function mapDel<K, V>(map: Map<K, V>, key: K): Map<K, V> {
@@ -71,4 +74,37 @@ export function arrayAppend<T>(arr: T[], val: T): T[] {
 
 export function arrayHasRepeats<T>(arr: T[]): boolean {
     return new Set(arr).size < arr.length;
+}
+
+export function arrayEq<T>(
+    lhs: T[],
+    rhs: T[],
+    eq: (lhs: T, rhs: T) => boolean = (x, y) => x === y
+): boolean {
+    if (lhs.length !== rhs.length) {
+        return false;
+    }
+
+    for (let i = 0; i < lhs.length; i++) {
+        if (!eq(lhs[i], rhs[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+export function arrayCat<T>(lhs: T[], rhs: T[]): T[] {
+    return [...lhs, ...rhs];
+}
+
+export function arrayIsSub<T>(lhs: T[], rhs: T[]): boolean {
+    return lhs.every(t => rhs.includes(t));
+}
+
+export function arrayLeftDiff<T>(lhs: T[], rhs: T[]): T[] {
+    return lhs.filter(x => !rhs.includes(x));
+}
+
+export function arrayIntr<T>(lhs: T[], rhs: T[]): T[] {
+    return lhs.filter(x => rhs.includes(x));
 }

@@ -1,25 +1,31 @@
-import {FormulaRelationExpr, GridRelationExpr, RelationExpr, type Scope} from "../model.ts";
-import {mapFindKey} from "../utils/functional-utils.ts";
-import {GridRelationEditor} from "./GridRelationEditor.tsx";
-import {FormulaRelationEditor} from "./FormulaRelationEditor.tsx";
+import {GridRelationEditor} from "./grid-relation-editor.tsx";
+import {FormulaRelationEditor} from "./formula-relation-editor.tsx";
+import {RelationExpr, type RelationScope} from "../model/core.ts";
+import {GridRelationExpr} from "../model/grid-relation-expr.ts";
+import {FormulaRelationExpr} from "../model/formula-relation-expr.ts";
+import type {MutVal} from "../utils/react-utils.ts";
 
 export function RelationEditor(props: {
     expr: RelationExpr;
-    scope: Scope,
+    scope: MutVal<RelationScope>,
     onDelete: () => void;
+    name: string;
     onNameChange: (name: string) => void;
     onChange: () => void;
 }) {
+    const scope = props.scope;
+
     return <div className={"relation"}>
         {/* controls */}
         <div className="relation_controls">
             <input
                 type="text"
+                value={props.name}
                 onChange={e =>
                     props.onNameChange(e.target.value)
                 }
                 style={{
-                    borderColor: mapFindKey(props.scope, props.expr) != null ? "green" : "red"
+                    borderColor: scope.value.get(props.name) === props.expr ? "green" : "red"
                 }}
             />
             <button
@@ -33,7 +39,7 @@ export function RelationEditor(props: {
         {
             props.expr instanceof GridRelationExpr ? <GridRelationEditor expr={props.expr} onChange={props.onChange}/> :
                 props.expr instanceof FormulaRelationExpr ?
-                    <FormulaRelationEditor expr={props.expr} scope={props.scope} onChange={props.onChange}/> :
+                    <FormulaRelationEditor expr={props.expr} scope={scope} onChange={props.onChange}/> :
                     `INVALID TYPE: ${props.expr.constructor.name}`
         }
     </div>;

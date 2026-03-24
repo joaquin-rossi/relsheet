@@ -1,6 +1,6 @@
-import {GridRelationExpr} from "../model.ts";
 import {useMemo} from "react";
 import {arrayAppend, arrayResize} from "../utils/functional-utils.ts";
+import type {GridRelationExpr} from "../model/grid-relation-expr.ts";
 
 export function GridRelationEditor(props: {
     expr: GridRelationExpr;
