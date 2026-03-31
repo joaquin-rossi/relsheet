@@ -7,6 +7,7 @@ import {
     arrayHasRepeats,
     arrayIntr,
     arrayLeftDiff,
+    parseBoolean,
     unreachable
 } from "../../utils/functional-utils.ts";
 import {GlobalScope} from "../../utils/language-utils.ts";
@@ -149,45 +150,90 @@ export function evalQuery(expr: QueryRelExpr, ctx: EvalCtx): RelationVal {
                     ))
             )
         };
+    } else if (expr.type === "LIMIT") {
+        const innerVal = evalQuery(expr.inner, ctx);
+        const skipVal = expr.skip ? parseInt(evalQueryScalar(expr.skip, new GlobalScope())) : 0;
+        const takeVal = parseInt(evalQueryScalar(expr.take, new GlobalScope()));
+
+        return {
+            cols: innerVal.cols,
+            rows: arrayDup(innerVal.rows.slice(skipVal, skipVal + takeVal))
+        };
     } else {
         return unreachable((expr as any).type);
     }
 }
 
 function evalQueryScalar(expr: QueryScalarExpr, scope: ScalarScope): ScalarVal {
+    let result: any;
+
     if (expr.type === "VARIABLE") {
-        const val = scope.get(expr.value);
-        if (!val) {
+        result = scope.get(expr.value);
+        if (!result) {
             throw new Error(`Undefined scalar variable: ${expr.value}`);
-        } else {
-            return val;
         }
     } else if (expr.type === "NUMBER") {
-        return expr.value.toString();
+        result = expr.value;
     } else if (expr.type === "BINOP") {
         const leftVal = evalQueryScalar(expr.left, scope);
         const rightVal = evalQueryScalar(expr.right, scope);
 
-        if (expr.kind === "LT") {
-            return parseFloat(leftVal) < parseFloat(rightVal) ? "true" : "false";
+        if (expr.kind === "EQ") {
+            result = leftVal === rightVal
+        } else if (expr.kind === "NEQ") {
+            result = leftVal !== rightVal;
+        } else if (expr.kind === "LT") {
+            result = parseFloat(leftVal) < parseFloat(rightVal);
         } else if (expr.kind === "LTE") {
-            return parseFloat(leftVal) <= parseFloat(rightVal) ? "true" : "false";
+            result = parseFloat(leftVal) <= parseFloat(rightVal);
         } else if (expr.kind === "GT") {
-            return parseFloat(leftVal) > parseFloat(rightVal) ? "true" : "false";
+            result = parseFloat(leftVal) > parseFloat(rightVal);
         } else if (expr.kind === "GTE") {
-            return parseFloat(leftVal) >= parseFloat(rightVal) ? "true" : "false";
+            result = parseFloat(leftVal) >= parseFloat(rightVal);
         } else if (expr.kind === "ADD") {
-            return (parseFloat(leftVal) + parseFloat(rightVal)).toString();
+            result = parseFloat(leftVal) + parseFloat(rightVal);
         } else if (expr.kind === "SUB") {
-            return (parseFloat(leftVal) - parseFloat(rightVal)).toString();
+            result = parseFloat(leftVal) - parseFloat(rightVal);
         } else if (expr.kind === "MUL") {
-            return (parseFloat(leftVal) * parseFloat(rightVal)).toString();
+            result = parseFloat(leftVal) * parseFloat(rightVal);
         } else if (expr.kind === "DIV") {
-            return (parseFloat(leftVal) / parseFloat(rightVal)).toString();
+            result = parseFloat(leftVal) / parseFloat(rightVal);
+        } else if (expr.kind === "MOD") {
+            result = parseFloat(leftVal) % parseFloat(rightVal);
+        } else if (expr.kind === "POW") {
+            result = Math.pow(parseFloat(leftVal), parseFloat(rightVal));
+        } else if (expr.kind === "LOG_AND") {
+            result = parseBoolean(leftVal) && parseBoolean(rightVal);
+        } else if (expr.kind === "LOG_OR") {
+            result = parseBoolean(leftVal) || parseBoolean(rightVal);
+        } else if (expr.kind === "BIT_AND") {
+            result = parseInt(leftVal) & parseInt(rightVal);
+        } else if (expr.kind === "BIT_OR") {
+            result = parseInt(leftVal) | parseInt(rightVal);
+        } else if (expr.kind === "BIT_XOR") {
+            result = parseInt(leftVal) ^ parseInt(rightVal);
+        } else if (expr.kind === "BIT_SHL") {
+            result = parseInt(leftVal) << parseInt(rightVal);
+        } else if (expr.kind === "BIT_SHR") {
+            result = parseInt(leftVal) >> parseInt(rightVal);
+        } else {
+            return unreachable((expr as any).kind);
+        }
+    } else if (expr.type === "UNOP") {
+        const innerVal = evalQueryScalar(expr.inner, scope);
+
+        if (expr.kind === "NEG") {
+            result = -parseFloat(innerVal);
+        } else if (expr.kind === "LOG_NOT") {
+            result = !parseBoolean(innerVal);
+        } else if (expr.kind === "BIT_NOT") {
+            result = ~parseInt(innerVal);
         } else {
             return unreachable((expr as any).kind);
         }
     } else {
         return unreachable((expr as any).type);
     }
+
+    return result.toString();
 }

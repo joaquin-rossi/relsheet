@@ -108,3 +108,15 @@ export function arrayLeftDiff<T>(lhs: T[], rhs: T[]): T[] {
 export function arrayIntr<T>(lhs: T[], rhs: T[]): T[] {
     return lhs.filter(x => rhs.includes(x));
 }
+
+export function parseBoolean(str: string): boolean {
+    if (str === "true") {
+        return true;
+    } else if (str === "false") {
+        return false;
+    } else {
+        throw new Error(`Invalid boolean: "${str}"`);
+    }
+}
+
+export type SetType<S> = S extends Set<infer T> ? T : never;

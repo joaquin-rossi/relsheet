@@ -65,18 +65,27 @@ export default function App() {
         rel_expr =
             | identifier
             | rel_expr rel_binop rel_expr
-            | "project" "[" identifier * "]" "(" rel_expr ")"
+            | "project" "[" rel_project_col * "]" "(" rel_expr ")"
             | "select" "[" scalar_expr "]" "(" rel_expr ")"
             | "natjoin" "(" rel_expr "," rel_expr ")"
+            
+        rel_project_col = identifier "=>" scalar_expr
 
         rel_binop = "|" | "&" | "-" | "*"
 
         scalar_expr =
             | number
             | identifier
+            | scalar_unop scalar_expr
             | scalar_expr scalar_binop scalar_expr
 
-        scalar_binop = "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/"
+        scalar_unop = "-" | "!" | "~"
+
+        scalar_binop =
+            | "==" | "!=" | "<" | "<=" | ">" | ">="
+            | "+" | "-" | "*" | "/" | "%" | "**"
+            | "&&" | "||"
+            | "&" | "|" | "^" | "<<" | ">>"
     `;
 
     return <>

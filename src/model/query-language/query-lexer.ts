@@ -1,4 +1,5 @@
 import {isAlpha, isAlphanumeric, isNumeric} from "../../utils/language-utils.ts";
+import type {SetType} from "../../utils/functional-utils.ts";
 
 export type QueryToken =
     | { type: "IDENTIFIER"; value: string }
@@ -6,32 +7,26 @@ export type QueryToken =
     | { type: QueryTokenPunctuation }
     ;
 
-export type QueryTokenPunctuation =
-    | "COMMA"
-    | "PAREN_LEFT"
-    | "PAREN_RIGHT"
-    | "BRACKET_LEFT"
-    | "BRACKET_RIGHT"
-    | "PIPE"
-    | "PLUS"
-    | "STAR"
-    | "LESS_THAN"
-    | "AND"
-    | "DASH"
-    | "FAT_ARROW"
-    | "LESS_THAN_EQ"
-    | "GREATER_THAN_EQ"
-    | "GREATER_THAN"
-    | "SLASH"
-;
+const punctuationSet = new Set([
+    ",", "=>",
+    "(", ")", "[", "]",
+    "+", "-", "*", "/", "%", "**",
+    "==", "!=",
+    "<", "<=", ">", ">=",
+    "|", "||", "&", "&&",
+    "^", "<<", ">>",
+] as const);
+
+const punctuationMaxLength = Math.max(...[...punctuationSet].map(arr => arr.length));
+
+export type QueryTokenPunctuation = SetType<typeof punctuationSet>;
 
 export function tokenizeQuery(input: string): QueryToken[] {
     const tokens: QueryToken[] = [];
-    let i = 0;
 
+    let i = 0;
     while (i < input.length) {
         const c = input[i];
-        const cn = (n: number) => input.substring(i, i + n);
 
         // skip whitespace
         if (c === " " || c === "\t" || c === "\n" || c === "\r") {
@@ -39,47 +34,32 @@ export function tokenizeQuery(input: string): QueryToken[] {
             continue;
         }
 
-        // dual-character tokens
-        const dualCharacterTokens = new Map<string, QueryTokenPunctuation>([
-            ["=>", "FAT_ARROW"],
-            ["<=", "LESS_THAN_EQ"],
-            [">=", "GREATER_THAN_EQ"],
-        ]);
-        const dualCharacterMatch = dualCharacterTokens.get(cn(2));
-        if (dualCharacterMatch) {
-            tokens.push({type: dualCharacterMatch});
-            i += 2;
+        // skip comments
+        if (c === "#") {
+            i++;
+            while (i < input.length && input[i++] !== "\n");
             continue;
         }
 
-        // single-character tokens
-        const singleCharacterTokens = new Map<string, QueryTokenPunctuation>([
-            [",", "COMMA"],
-            ["(", "PAREN_LEFT"],
-            [")", "PAREN_RIGHT"],
-            ["[", "BRACKET_LEFT"],
-            ["]", "BRACKET_RIGHT"],
-            ["|", "PIPE"],
-            ["*", "STAR"],
-            ["<", "LESS_THAN"],
-            [">", "GREATER_THAN"],
-            ["&", "AND"],
-            ["-", "DASH"],
-            ["+", "PLUS"],
-            ["/", "SLASH"],
-        ]);
-        const singleCharacterMatch = singleCharacterTokens.get(c);
-        if (singleCharacterMatch) {
-            tokens.push({type: singleCharacterMatch});
-            i++;
+        // punctuation
+        let punctuationFound = false;
+        for (let l = punctuationMaxLength; l > 0; l--) {
+            const s = input.substring(i, i + l);
+
+            if (punctuationSet.has(s as any)) {
+                i += l;
+                tokens.push({type: s as QueryTokenPunctuation});
+                punctuationFound = true;
+                break;
+            }
+        }
+        if (punctuationFound) {
             continue;
         }
 
         // identifier
         if (isAlpha(c)) {
-            let start = i;
-            i++;
-
+            let start = i++;
             while (i < input.length && isAlphanumeric(input[i])) {
                 i++;
             }
@@ -88,15 +68,12 @@ export function tokenizeQuery(input: string): QueryToken[] {
                 type: "IDENTIFIER",
                 value: input.slice(start, i),
             });
-
             continue;
         }
 
         // number
         if (isNumeric(c)) {
-            let start = i;
-            i++;
-
+            let start = i++;
             while (i < input.length && isNumeric(input[i])) {
                 i++;
             }
@@ -105,7 +82,6 @@ export function tokenizeQuery(input: string): QueryToken[] {
                 type: "NUMBER",
                 value: parseInt(input.slice(start, i)),
             });
-
             continue;
         }
 
