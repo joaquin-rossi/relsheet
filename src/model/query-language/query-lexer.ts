@@ -3,17 +3,27 @@ import {isAlpha, isAlphanumeric, isNumeric} from "../../utils/language-utils.ts"
 export type QueryToken =
     | { type: "IDENTIFIER"; value: string }
     | { type: "NUMBER"; value: number }
-    | { type: "COMMA" }
-    | { type: "PAREN_LEFT" }
-    | { type: "PAREN_RIGHT" }
-    | { type: "BRACKET_LEFT" }
-    | { type: "BRACKET_RIGHT" }
-    | { type: "PIPE" }
-    | { type: "STAR" }
-    | { type: "LESS_THAN" }
-    | { type: "AND" }
-    | { type: "DASH" }
+    | { type: QueryTokenPunctuation }
     ;
+
+export type QueryTokenPunctuation =
+    | "COMMA"
+    | "PAREN_LEFT"
+    | "PAREN_RIGHT"
+    | "BRACKET_LEFT"
+    | "BRACKET_RIGHT"
+    | "PIPE"
+    | "PLUS"
+    | "STAR"
+    | "LESS_THAN"
+    | "AND"
+    | "DASH"
+    | "FAT_ARROW"
+    | "LESS_THAN_EQ"
+    | "GREATER_THAN_EQ"
+    | "GREATER_THAN"
+    | "SLASH"
+;
 
 export function tokenizeQuery(input: string): QueryToken[] {
     const tokens: QueryToken[] = [];
@@ -21,6 +31,7 @@ export function tokenizeQuery(input: string): QueryToken[] {
 
     while (i < input.length) {
         const c = input[i];
+        const cn = (n: number) => input.substring(i, i + n);
 
         // skip whitespace
         if (c === " " || c === "\t" || c === "\n" || c === "\r") {
@@ -28,45 +39,38 @@ export function tokenizeQuery(input: string): QueryToken[] {
             continue;
         }
 
+        // dual-character tokens
+        const dualCharacterTokens = new Map<string, QueryTokenPunctuation>([
+            ["=>", "FAT_ARROW"],
+            ["<=", "LESS_THAN_EQ"],
+            [">=", "GREATER_THAN_EQ"],
+        ]);
+        const dualCharacterMatch = dualCharacterTokens.get(cn(2));
+        if (dualCharacterMatch) {
+            tokens.push({type: dualCharacterMatch});
+            i += 2;
+            continue;
+        }
+
         // single-character tokens
-        if (c === ",") {
-            tokens.push({type: "COMMA"});
-            i++;
-            continue;
-        } else if (c === "(") {
-            tokens.push({type: "PAREN_LEFT"});
-            i++;
-            continue;
-        } else if (c === ")") {
-            tokens.push({type: "PAREN_RIGHT"});
-            i++;
-            continue;
-        } else if (c === "[") {
-            tokens.push({type: "BRACKET_LEFT"});
-            i++;
-            continue;
-        } else if (c === "]") {
-            tokens.push({type: "BRACKET_RIGHT"});
-            i++;
-            continue;
-        } else if (c === "|") {
-            tokens.push({type: "PIPE"});
-            i++;
-            continue;
-        } else if (c === "*") {
-            tokens.push({type: "STAR"});
-            i++;
-            continue;
-        } else if (c === "<") {
-            tokens.push({type: "LESS_THAN"});
-            i++;
-            continue;
-        } else if (c === "&") {
-            tokens.push({type: "AND"});
-            i++;
-            continue;
-        } else if (c === "-") {
-            tokens.push({type: "DASH"});
+        const singleCharacterTokens = new Map<string, QueryTokenPunctuation>([
+            [",", "COMMA"],
+            ["(", "PAREN_LEFT"],
+            [")", "PAREN_RIGHT"],
+            ["[", "BRACKET_LEFT"],
+            ["]", "BRACKET_RIGHT"],
+            ["|", "PIPE"],
+            ["*", "STAR"],
+            ["<", "LESS_THAN"],
+            [">", "GREATER_THAN"],
+            ["&", "AND"],
+            ["-", "DASH"],
+            ["+", "PLUS"],
+            ["/", "SLASH"],
+        ]);
+        const singleCharacterMatch = singleCharacterTokens.get(c);
+        if (singleCharacterMatch) {
+            tokens.push({type: singleCharacterMatch});
             i++;
             continue;
         }

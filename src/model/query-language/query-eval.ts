@@ -6,7 +6,6 @@ import {
     arrayEq,
     arrayHasRepeats,
     arrayIntr,
-    arrayIsSub,
     arrayLeftDiff,
     unreachable
 } from "../../utils/functional-utils.ts";
@@ -80,36 +79,41 @@ export function evalQuery(expr: QueryRelExpr, ctx: EvalCtx): RelationVal {
             return unreachable((expr as any).kind);
         }
     } else if (expr.type === "PROJECT") {
-        if (arrayHasRepeats(expr.cols)) {
+        const exprColDefs = expr.cols;
+        const exprCols = expr.cols.map(x => x.name);
+
+        if (arrayHasRepeats(exprCols)) {
             throw new Error("Repeated columns");
         }
 
         const val = evalQuery(expr.expr, ctx);
-        if (!arrayIsSub(expr.cols, val.cols)) {
-            throw new Error("Unexpected column");
-        }
-
-        const piCols = buildColMap(val.cols, expr.cols);
 
         function pi(row: string[]): string[] {
-            return piCols.map(i => row[i]);
+            const scope = new GlobalScope<string>();
+            val.cols.forEach((c, i) => {
+                scope.define(c, row[i]);
+            });
+
+            return exprColDefs.map(c =>
+                evalQueryScalar(c.expr, scope)
+            );
         }
 
         return {
-            cols: arrayDup(expr.cols),
+            cols: exprCols,
             rows: val.rows.map(pi),
         };
     } else if (expr.type === "SELECT") {
         const val = evalQuery(expr.expr, ctx);
 
         const rows = val.rows
-            .filter(r => {
+            .filter(row => {
                 const scope = new GlobalScope<string>();
                 val.cols.forEach((c, i) => {
-                    scope.define(c, r[i]);
+                    scope.define(c, row[i]);
                 });
 
-                return evalQueryScalarExpr(expr.cond, scope) === "true";
+                return evalQueryScalar(expr.cond, scope) === "true";
             });
 
         return {
@@ -150,7 +154,7 @@ export function evalQuery(expr: QueryRelExpr, ctx: EvalCtx): RelationVal {
     }
 }
 
-function evalQueryScalarExpr(expr: QueryScalarExpr, scope: ScalarScope): ScalarVal {
+function evalQueryScalar(expr: QueryScalarExpr, scope: ScalarScope): ScalarVal {
     if (expr.type === "VARIABLE") {
         const val = scope.get(expr.value);
         if (!val) {
@@ -158,13 +162,31 @@ function evalQueryScalarExpr(expr: QueryScalarExpr, scope: ScalarScope): ScalarV
         } else {
             return val;
         }
-    } else if (expr.type === "LITERAL_NUM") {
+    } else if (expr.type === "NUMBER") {
         return expr.value.toString();
-    } else if (expr.type === "LESS_THAN") {
-        const leftVal = evalQueryScalarExpr(expr.left, scope);
-        const rightVal = evalQueryScalarExpr(expr.right, scope);
+    } else if (expr.type === "BINOP") {
+        const leftVal = evalQueryScalar(expr.left, scope);
+        const rightVal = evalQueryScalar(expr.right, scope);
 
-        return parseInt(leftVal) < parseInt(rightVal) ? "true" : "false";
+        if (expr.kind === "LT") {
+            return parseFloat(leftVal) < parseFloat(rightVal) ? "true" : "false";
+        } else if (expr.kind === "LTE") {
+            return parseFloat(leftVal) <= parseFloat(rightVal) ? "true" : "false";
+        } else if (expr.kind === "GT") {
+            return parseFloat(leftVal) > parseFloat(rightVal) ? "true" : "false";
+        } else if (expr.kind === "GTE") {
+            return parseFloat(leftVal) >= parseFloat(rightVal) ? "true" : "false";
+        } else if (expr.kind === "ADD") {
+            return (parseFloat(leftVal) + parseFloat(rightVal)).toString();
+        } else if (expr.kind === "SUB") {
+            return (parseFloat(leftVal) - parseFloat(rightVal)).toString();
+        } else if (expr.kind === "MUL") {
+            return (parseFloat(leftVal) * parseFloat(rightVal)).toString();
+        } else if (expr.kind === "DIV") {
+            return (parseFloat(leftVal) / parseFloat(rightVal)).toString();
+        } else {
+            return unreachable((expr as any).kind);
+        }
     } else {
         return unreachable((expr as any).type);
     }

@@ -68,13 +68,15 @@ export default function App() {
             | "project" "[" identifier * "]" "(" rel_expr ")"
             | "select" "[" scalar_expr "]" "(" rel_expr ")"
             | "natjoin" "(" rel_expr "," rel_expr ")"
-           
-        rel_bionp = "|" | "&" | "-" | "*"
+
+        rel_binop = "|" | "&" | "-" | "*"
 
         scalar_expr =
             | number
             | identifier
-            | scalar_expr "<" scalar_expr
+            | scalar_expr scalar_binop scalar_expr
+
+        scalar_binop = "<" | "<=" | ">" | ">=" | "+" | "-" | "*" | "/"
     `;
 
     return <>

@@ -8,13 +8,16 @@ export type QueryRelExpr =
     // identifier
     | QueryRelBinopExpr
     // rel_expr binop rel_expr
-    | { type: "PROJECT"; cols: string[]; expr: QueryRelExpr }
-    // "project" "[" <list(identifier, ",")> "]" "(" <expr> ")"
+    | { type: "PROJECT"; cols: QueryProjectCol[]; expr: QueryRelExpr }
+    // "project" "[" <list(project_clause, ",")> "]" "(" rel_expr ")"
     | { type: "SELECT"; cond: QueryScalarExpr; expr: QueryRelExpr }
     // "select" "[" scalar_expr "]" "(" rel_expr ")"
     | { type: "NATURAL_JOIN"; left: QueryRelExpr; right: QueryRelExpr }
     // "natjoin" "(" rel_expr "," rel_expr ")"
     ;
+
+// name "=>" scalar_expr
+export type QueryProjectCol = { name: string, expr: QueryScalarExpr };
 
 export type QueryRelBinopExpr = {
     type: "BINOP";
@@ -24,10 +27,17 @@ export type QueryRelBinopExpr = {
 }
 
 export type QueryScalarExpr =
-    | { type: "LITERAL_NUM"; value: number }
+    | { type: "NUMBER"; value: number }
     | { type: "VARIABLE"; value: string }
-    | { type: "LESS_THAN"; left: QueryScalarExpr, right: QueryScalarExpr }
+    | QueryScalarBinopExpr
     ;
+
+export type QueryScalarBinopExpr = {
+    type: "BINOP";
+    kind: "LT" | "LTE" | "GT" | "GTE" | "ADD" | "SUB" | "MUL" | "DIV";
+    left: QueryScalarExpr;
+    right: QueryScalarExpr;
+}
 
 type ParseFn<T> = (parser: Parser<QueryToken>) => T;
 
@@ -63,19 +73,25 @@ function parseQueryRelExpr(parser: QueryParser): QueryRelExpr {
         };
     }
 
-    function parseIdentifierList(parser: QueryParser): string[] {
-        const cols: string[] = [];
+    function parseList<T>(itemParser: ParseFn<T>, itemSep: QueryToken["type"]) {
+        return (parser: QueryParser): T[] => {
+            const items: T[] = [];
 
-        const first = parser.expect("IDENTIFIER");
-        cols.push(first.value);
+            items.push(itemParser(parser));
+            while (parser.peek()?.type === itemSep) {
+                parser.consume();
+                items.push(itemParser(parser));
+            }
 
-        while (parser.peek()?.type === "COMMA") {
-            parser.consume();
-            const next = parser.expect("IDENTIFIER");
-            cols.push(next.value);
-        }
+            return items;
+        };
+    }
 
-        return cols;
+    function parseProjectCol(parser: QueryParser): QueryProjectCol {
+        const name = parser.expect("IDENTIFIER").value;
+        parser.expect("FAT_ARROW");
+        const expr = parseQueryScalarExpr(parser);
+        return {name, expr};
     }
 
     function parsePrimary(parser: QueryParser): QueryRelExpr {
@@ -89,7 +105,7 @@ function parseQueryRelExpr(parser: QueryParser): QueryRelExpr {
 
             if (token.value === "project") {
                 parser.expect("BRACKET_LEFT");
-                const cols = parseIdentifierList(parser);
+                const cols = parseList(parseProjectCol, "COMMA")(parser);
                 parser.expect("BRACKET_RIGHT");
                 parser.expect("PAREN_LEFT");
                 const expr = parseQueryRelExpr(parser);
@@ -149,20 +165,22 @@ function parseQueryRelExpr(parser: QueryParser): QueryRelExpr {
 }
 
 function parseQueryScalarExpr(parser: QueryParser): QueryScalarExpr {
-    function parseLessThan(): QueryScalarExpr {
-        let expr = parsePrimary();
+    function parseBinopLeft(kind: QueryScalarBinopExpr["kind"], tokenType: QueryToken["type"]) {
+        return (next: ParseFn<QueryScalarExpr>) => (parser: QueryParser) => {
+            let expr = next(parser);
 
-        while (parser.peek()?.type === "LESS_THAN") {
-            parser.consume();
-            const right = parsePrimary();
-            expr = {
-                type: "LESS_THAN",
-                left: expr,
-                right,
-            };
-        }
+            while (parser.peek()?.type === tokenType) {
+                parser.consume();
+                expr = {
+                    type: "BINOP",
+                    kind,
+                    left: expr,
+                    right: next(parser),
+                };
+            }
 
-        return expr;
+            return expr;
+        };
     }
 
     function parsePrimary(): QueryScalarExpr {
@@ -181,13 +199,26 @@ function parseQueryScalarExpr(parser: QueryParser): QueryScalarExpr {
         } else if (token.type === "NUMBER") {
             parser.consume();
             return {
-                type: "LITERAL_NUM",
+                type: "NUMBER",
                 value: token.value
             };
+        } else if (token.type === "PAREN_LEFT") {
+            parser.consume();
+            const expr = parseQueryScalarExpr(parser);
+            parser.expect("PAREN_RIGHT");
+            return expr;
         } else {
             throw new Error(`Unexpected token ${token.type}`);
         }
     }
 
-    return parseLessThan();
+    const stepDiv = parseBinopLeft("DIV", "SLASH")(parsePrimary);
+    const stepMul = parseBinopLeft("MUL", "STAR")(stepDiv);
+    const stepSub = parseBinopLeft("SUB", "DASH")(stepMul);
+    const stepAdd = parseBinopLeft("ADD", "PLUS")(stepSub);
+    const stepGte = parseBinopLeft("GTE", "GREATER_THAN_EQ")(stepAdd);
+    const stepGt = parseBinopLeft("GT", "GREATER_THAN")(stepGte);
+    const stepLte = parseBinopLeft("LTE", "LESS_THAN_EQ")(stepGt);
+    const stepLt = parseBinopLeft("LT", "LESS_THAN")(stepLte);
+    return stepLt(parser);
 }
