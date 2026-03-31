@@ -1,10 +1,10 @@
 import {useMemo} from "react";
-import type {FormulaRelationExpr} from "../model/formula-relation-expr.ts";
+import type {QueryRelationExpr} from "../model/query-relation-expr.ts";
 import type {RelationScope, RelationVal} from "../model/core.ts";
 import type {MutVal} from "../utils/react-utils.ts";
 
-export function FormulaRelationEditor(props: {
-    expr: FormulaRelationExpr;
+export function QueryRelationEditor(props: {
+    expr: QueryRelationExpr;
     scope: MutVal<RelationScope>,
     onChange: () => void;
 }) {
@@ -37,17 +37,18 @@ export function FormulaRelationEditor(props: {
             style={{
                 borderColor: !(value == null || value instanceof Error) ? "green" : "red"
             }}
-        ></textarea>
+        >
+        </textarea>
 
         {
             !value ? "Unknown error" :
                 value instanceof Error ? value.message :
-                    <FormulaResult value={value}/>
+                    <QueryResult value={value}/>
         }
     </div>;
 }
 
-function FormulaResult({value}: { value: RelationVal }) {
+function QueryResult({value}: { value: RelationVal }) {
     return <div className="grid">
         <div className="grid_header">
             {value.cols.map((c, i) =>

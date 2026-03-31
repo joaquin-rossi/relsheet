@@ -1,6 +1,10 @@
 import {arrayIsSub} from "../utils/functional-utils.ts";
 import type {Scope} from "../utils/language-utils.ts";
 
+export type ScalarVal = string;
+
+export type ScalarScope = Scope<ScalarVal>;
+
 export type RelationVal = {
     cols: string[];
     rows: string[][];

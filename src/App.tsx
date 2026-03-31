@@ -3,8 +3,8 @@ import {mapSet} from "./utils/functional-utils.ts";
 import {RelationEditor} from "./components/relation-editor.tsx";
 import type {RelationExpr} from "./model/core.ts";
 import {GridRelationExpr} from "./model/grid-relation-expr.ts";
-import {FormulaRelationExpr} from "./model/formula-relation-expr.ts";
-import {GlobalScope} from "./utils/language-utils.ts";
+import {QueryRelationExpr} from "./model/query-relation-expr.ts";
+import {dedent, GlobalScope} from "./utils/language-utils.ts";
 import {atomMut, useAtomMut} from "./utils/react-utils.ts";
 
 const exprsAtom = atomMut(new Array<RelationExpr>());
@@ -61,15 +61,34 @@ export default function App() {
         mutScope();
     }
 
+    const text = dedent`
+        rel_expr =
+            | identifier
+            | rel_expr rel_binop rel_expr
+            | "project" "[" identifier * "]" "(" rel_expr ")"
+            | "select" "[" scalar_expr "]" "(" rel_expr ")"
+            | "natjoin" "(" rel_expr "," rel_expr ")"
+           
+        rel_bionp = "|" | "&" | "-" | "*"
+
+        scalar_expr =
+            | number
+            | identifier
+            | scalar_expr "<" scalar_expr
+    `;
+
     return <>
         <header>
             <h1>Relsheet</h1>
-            <div className={"button-panel"}>
+            <div className="button-panel">
                 <button onClick={() => handleExprAdd(new GridRelationExpr())}>
                     Add grid
                 </button>
-                <button onClick={() => handleExprAdd(new FormulaRelationExpr())}>
-                    Add formula
+                <button
+                    onClick={() => handleExprAdd(new QueryRelationExpr())}
+                    title={text}
+                >
+                    Add query
                 </button>
             </div>
         </header>

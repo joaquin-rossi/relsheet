@@ -1,8 +1,8 @@
 import {GridRelationEditor} from "./grid-relation-editor.tsx";
-import {FormulaRelationEditor} from "./formula-relation-editor.tsx";
+import {QueryRelationEditor} from "./query-relation-editor.tsx";
 import {RelationExpr, type RelationScope} from "../model/core.ts";
 import {GridRelationExpr} from "../model/grid-relation-expr.ts";
-import {FormulaRelationExpr} from "../model/formula-relation-expr.ts";
+import {QueryRelationExpr} from "../model/query-relation-expr.ts";
 import type {MutVal} from "../utils/react-utils.ts";
 
 export function RelationEditor(props: {
@@ -38,8 +38,8 @@ export function RelationEditor(props: {
 
         {
             props.expr instanceof GridRelationExpr ? <GridRelationEditor expr={props.expr} onChange={props.onChange}/> :
-                props.expr instanceof FormulaRelationExpr ?
-                    <FormulaRelationEditor expr={props.expr} scope={scope} onChange={props.onChange}/> :
+                props.expr instanceof QueryRelationExpr ?
+                    <QueryRelationEditor expr={props.expr} scope={scope} onChange={props.onChange}/> :
                     `INVALID TYPE: ${props.expr.constructor.name}`
         }
     </div>;

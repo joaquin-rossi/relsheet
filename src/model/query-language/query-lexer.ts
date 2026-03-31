@@ -1,5 +1,8 @@
+import {isAlpha, isAlphanumeric, isNumeric} from "../../utils/language-utils.ts";
+
 export type QueryToken =
     | { type: "IDENTIFIER"; value: string }
+    | { type: "NUMBER"; value: number }
     | { type: "COMMA" }
     | { type: "PAREN_LEFT" }
     | { type: "PAREN_RIGHT" }
@@ -7,20 +10,17 @@ export type QueryToken =
     | { type: "BRACKET_RIGHT" }
     | { type: "PIPE" }
     | { type: "STAR" }
+    | { type: "LESS_THAN" }
+    | { type: "AND" }
+    | { type: "DASH" }
     ;
 
-export function tokenizeQuery(query: string): QueryToken[] {
+export function tokenizeQuery(input: string): QueryToken[] {
     const tokens: QueryToken[] = [];
     let i = 0;
 
-    const isAlpha = (c: string) =>
-        (c >= "a" && c <= "z") || (c >= "A" && c <= "Z") || c === "_";
-
-    const isAlphanumeric = (c: string) =>
-        isAlpha(c) || (c >= "0" && c <= "9");
-
-    while (i < query.length) {
-        const c = query[i];
+    while (i < input.length) {
+        const c = input[i];
 
         // skip whitespace
         if (c === " " || c === "\t" || c === "\n" || c === "\r") {
@@ -57,6 +57,18 @@ export function tokenizeQuery(query: string): QueryToken[] {
             tokens.push({type: "STAR"});
             i++;
             continue;
+        } else if (c === "<") {
+            tokens.push({type: "LESS_THAN"});
+            i++;
+            continue;
+        } else if (c === "&") {
+            tokens.push({type: "AND"});
+            i++;
+            continue;
+        } else if (c === "-") {
+            tokens.push({type: "DASH"});
+            i++;
+            continue;
         }
 
         // identifier
@@ -64,13 +76,30 @@ export function tokenizeQuery(query: string): QueryToken[] {
             let start = i;
             i++;
 
-            while (i < query.length && isAlphanumeric(query[i])) {
+            while (i < input.length && isAlphanumeric(input[i])) {
                 i++;
             }
 
             tokens.push({
                 type: "IDENTIFIER",
-                value: query.slice(start, i),
+                value: input.slice(start, i),
+            });
+
+            continue;
+        }
+
+        // number
+        if (isNumeric(c)) {
+            let start = i;
+            i++;
+
+            while (i < input.length && isNumeric(input[i])) {
+                i++;
+            }
+
+            tokens.push({
+                type: "NUMBER",
+                value: parseInt(input.slice(start, i)),
             });
 
             continue;
